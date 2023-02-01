@@ -1,5 +1,7 @@
 from flask import Flask, request
 
+CO2_TON_PER_MWH = 0.3
+
 def merit_order(data: dict) -> list:
     """
         This function decides which powerplants to activate according to the merit-order
@@ -27,6 +29,10 @@ def merit_order(data: dict) -> list:
     total_generated = 0
     activated_plants = []
 
+    # We also initialize the cost of emissions and of power
+    cost_of_emissions = 0
+    cost_of_power = 0
+
     for plant in powerplants:
 
         # If wind turbine
@@ -39,9 +45,6 @@ def merit_order(data: dict) -> list:
             
             # We add the plant to the list, and we don't forget to set the 'p' parameter with a precision of 0.1
             activated_plants.append({'name': plant['name'], 'p': int(generated * 10) / 10.0})
-            
-            if too_much_energy:
-                break
 
         
         # For the other cases
@@ -50,12 +53,18 @@ def merit_order(data: dict) -> list:
             too_much_energy = total_generated + plant['pmax'] >= load
 
             # If the plant is gas-fired or turbojet type, we check if switching on the plant will meet the load or not
-            generated = load - total_generated if too_much_energy else plant['pmin']
+            generated = load - total_generated if too_much_energy else plant['pmax']
             
             # We add the plant to the list, and we don't forget to set the 'p' parameter with a precision of 0.1
             activated_plants.append({'name': plant['name'], 'p': int(generated * 10) / 10.0})
 
-            if too_much_energy:
+
+        # We compute the cost of emissions and the cost of power
+        cost_of_emissions += generated * CO2_TON_PER_MWH * fuels['co2(euro/ton)']
+        cost_of_power += generated * powerplant_fuels_map[plant['type']] / plant['efficiency'] + cost_of_emissions
+
+        # If we have produced too much energy, we stop here
+        if too_much_energy:
                 break
         
         # Also, let's not forget to update what we have generated so far
@@ -66,7 +75,7 @@ def merit_order(data: dict) -> list:
         activated_plants += [{'name': plant['name'], 'p': 0.0} for plant in powerplants[len(activated_plants):]]
 
 
-    return activated_plants
+    return activated_plants, cost_of_emissions, cost_of_power
 
 
 app = Flask(__name__)
@@ -77,7 +86,14 @@ def production_plan():
     print("Production plan received!")
 
     payload = request.get_json()
-    return merit_order(payload)
+    
+    activated_plants, cost_of_emissions, cost_of_power = merit_order(payload)
+
+    cost_of_emissions = f"\nCost of emissions: {cost_of_emissions: .2f} tons of CO2\n"
+    cost_of_power = f"Cost of power: {cost_of_power: .2f} €\n"
+
+    return str(activated_plants) + cost_of_emissions + cost_of_power
+
 
 
 if __name__ == '__main__':
