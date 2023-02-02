@@ -40,6 +40,15 @@ Yes, only one line. Have fun!
 
 Well, firstly, the script will build the Dockerfile stored in the code/ folder. Then, it will run it, and finally, it will explain how you can make your POST request (just copy and paste the command given).
 
+### Results
+
+Here are the results with the payloads examples.
+This photo is the basic dislpay results:
+![alt text](Capture%20d'écran_20230202_005742.png)
+
+This photo is the results with the cost of emission and cost of power:
+![alt text](Capture%20d'écran_20230202_005857.png)
+
 ## More information
 
 If you need any complementary information, you can contact me at bedair.rayan@gmail.com.
